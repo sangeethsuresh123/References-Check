@@ -1,0 +1,38 @@
+[
+  {
+    "id": 1,
+    "authors": [
+      "Samuel Abedu",
+      "Ahmad Abdellatif",
+      "Emad Shihab"
+    ],
+    "year": 2024,
+    "title": "LLM-Based Chatbots for Mining Software Repositories: Challenges and Opportunities",
+    "publication_type": "conference_paper",
+    "conference_name": "International Conference on Evaluation and Assessment in Software Engineering",
+    "conference_acronym": "EASE",
+    "edition": 28,
+    "pages": "201–210",
+    "publisher": null,
+    "doi": null
+  },
+  {
+    "id": 2,
+    "authors": [
+      "Sungmin Kang",
+      "Gabin An",
+      "Shin Yoo"
+    ],
+    "year": 2024,
+    "title": "A Quantitative and Qualitative Evaluation of LLM-Based Explainable Fault Localization",
+    "publication_type": "journal_article",
+    "journal_name": "Proceedings of the ACM on Software Engineering",
+    "journal_abbreviation": "Proc. ACM Softw. Eng.",
+    "volume": 1,
+    "issue": "FSE",
+    "article_number": 64,
+    "month": "July",
+    "pages": "23 pages",
+    "doi": "10.1145/3660771"
+  }
+]
