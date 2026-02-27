@@ -143,8 +143,8 @@ def parser(filepath):
             entry = clean_reference_2(entry)
             match_check = re.match(WITH_DOI, entry)
             dict["doi"] = match_check.group(4)
-            if count == 26:
-                dict["doi"] += '5'
+            # if count == 26:
+            #     dict["doi"] += '5'
             search_result = cr.works(query=dict["x"], limit=1)
             item = search_result['message']['items'][0]
             print(f"Title: {item.get('title', ['No Title'])[0]}")
@@ -203,6 +203,8 @@ def parser(filepath):
                         if ratio > 80:
                             flag = 0
                             break
+                    if flag == 0:
+                        break
             if flag == 1:
                 print(authors, " != ", dict["authors"])
                 suspect += 1
@@ -217,8 +219,8 @@ def parser(filepath):
         #     matched += 1
         final_list.append(dict)
         count += 1
-        if matched == 30:
-            break
+        # if matched == 30:
+        # break
     print("Matched: ", matched)
     print("Total: ", count)
     print("Suspect: ", suspect)
