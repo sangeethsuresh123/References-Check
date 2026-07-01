@@ -1,6 +1,8 @@
 # works for extracting authors, title, doi(if exists) and the rest of the content
 
 import re
+import requests
+import time
 from pypdf import PdfReader
 from habanero import Crossref
 from fuzzywuzzy import fuzz
@@ -22,7 +24,8 @@ WITHOUT_DOI = r'^(.+?)\.\s*(\d{4})\.\s*(.+?)\.?$'
 # Pattern 3: Check if DOI exists anywhere (optional - for pre-check)
 # HAS_DOI = r'(?:https?://)?doi\.org[:/]?([\d\.\/\w\-]+)|doi:?\s*([\d\.\/\w\-]+)'
 # Group 1 or 2: doi (one will be None)
-cr = Crossref()
+# cr = Crossref()
+url = "https://dblp.org/search/publ/api"
 
 
 def extract_references(filename):
@@ -145,42 +148,19 @@ def parser(filepath):
             dict["doi"] = match_check.group(4)
             # if count == 26:
             #     dict["doi"] += '5'
-            search_result = cr.works(query=dict["x"], limit=1)
-            item = search_result['message']['items'][0]
-            print(f"Title: {item.get('title', ['No Title'])[0]}")
-            if 'author' in item:
-                for author in item['author']:
-                    # Using .get() to avoid KeyErrors if fields are missing
-                    given = author.get('given', '')
-                    family = author.get('family', '')
-                    # print(f" - Author: {given} {family}")
-                    res_author = given+" "+family
-                    authors.append(res_author)
-                    # print(authors)
-                    # if res_author in dict["authors"]:
-                    #     # print(dict['authors'], " != ", item["author"])
-                    #     flag = 0
-                    #     # suspect += 1
-                    #     break
-                    flag1 = 1
-                    for name in dict["authors"]:
-                        ratio = fuzz.ratio(res_author, name)
-                        if ratio > 80:
-                            flag1 = 0
-                            break
-                    if flag1 == 0:
-                        break
-            flag2 = 0
-            if item['DOI'] != dict["doi"]:
-                print(item["DOI"], " != ", dict["doi"])
-                suspect += 1
-                flag2 = 1
-
-            if flag1 == 1:
-                print(authors, " != ", dict["authors"])
-                if flag2 == 0:
-                    suspect += 1
-            matched += 1
+            # search_result = cr.works(query=dict["x"], limit=1)
+            params = {
+                "q": dict["x"],
+                "h": 10,
+                "format": "json"
+            }
+            response = requests.get(url, params=params)
+            try:
+                data = response.json()
+                print(data)
+            except Exception:
+                print("Response was not JSON:")
+                print(response.text[:1000])
         elif re.match(WITHOUT_DOI, entry):
             match_check = re.match(WITHOUT_DOI, entry)
             print("matched")
@@ -188,55 +168,29 @@ def parser(filepath):
             dict["authors"] = extract_authors(match_check.group(1))
             dict["year"] = match_check.group(2)
             dict["x"] = match_check.group(3)
-            search_result = cr.works(query=dict["x"], limit=1)
-            item = search_result['message']['items'][0]
-            print(f"Title: {item.get('title', ['No Title'])[0]}")
-            if 'author' in item:
-                for author in item['author']:
-                    # Using .get() to avoid KeyErrors if fields are missing
-                    given = author.get('given', '')
-                    family = author.get('family', '')
-                    # print(f" - Author: {given} {family}")
-                    res_author = given+" "+family
-                    authors.append(res_author)
-                    # if res_author in dict["authors"]:
-                    #     flag = 0
-                    #     # suspect += 1
-                    #     break
-                    flag1 = 1
-                    for name in dict["authors"]:
-                        ratio = fuzz.ratio(res_author, name)
-                        if ratio > 80:
-                            flag1 = 0
-                            break
-                    if flag1 == 0:
-                        break
-            if flag1 == 1:
-                print(authors, " != ", dict["authors"])
-                suspect += 1
-            matched += 1
-        # elif re.match(HAS_DOI, entry):
-        #     print("matched")
-        #     dict["id"] = count
-        #     entry = clean_reference_2(entry)
-        #     match_check = re.match(HAS_DOI, entry)
-        #     dict["doi"] = match_check.group(
-        #         1) if match_check.group(1) else match_check.group(2)
-        #     matched += 1
-        final_list.append(dict)
-        count += 1
-        # if matched == 30:
-        # break
-    print("Matched: ", matched)
-    print("Total: ", count)
-    print("Suspect: ", suspect)
-    return final_list
+            params = {
+                "q": dict["x"],
+                "h": 10,
+                "format": "json"
+            }
+            response = requests.get(url, params=params)
+            try:
+                data = response.json()
+                print(data)
+            except Exception:
+                print("Response was not JSON:")
+                print(response.text[:1000])
+        time.sleep(5)
+    # print("Matched: ", matched)
+    # print("Total: ", count)
+    # print("Suspect: ", suspect)
+    # return final_list
 
 
 output = parser("testfile.pdf")
 # f = open("references.txt", "w")
 # f.write(str(output)
-for entry in output:
-    print(entry)
+# for entry in output:
+#     print(entry)
 # ref_list = extract_references("testfile3.pdf")
 # print(ref_list[4])

@@ -1,6 +1,9 @@
 # works for extracting authors, title, doi(if exists) and the rest of the content
 
 import re
+import requests
+import time
+import feedparser
 from pypdf import PdfReader
 from habanero import Crossref
 from fuzzywuzzy import fuzz
@@ -22,7 +25,8 @@ WITHOUT_DOI = r'^(.+?)\.\s*(\d{4})\.\s*(.+?)\.?$'
 # Pattern 3: Check if DOI exists anywhere (optional - for pre-check)
 # HAS_DOI = r'(?:https?://)?doi\.org[:/]?([\d\.\/\w\-]+)|doi:?\s*([\d\.\/\w\-]+)'
 # Group 1 or 2: doi (one will be None)
-cr = Crossref()
+# cr = Crossref()
+url = "https://api.openalex.org/works?api_key=ISdnwS4MjMUpX9XkOYChZt"
 
 
 def extract_references(filename):
@@ -123,10 +127,11 @@ def clean_reference_2(text):
 def parser(filepath):
     ref_list = extract_references(filepath)
     final_list = []
-    count = 1
+    count = 0
     matched = 0
     suspect = 0
     for entry in ref_list:
+        count += 1
         # if count == 62:
         # print(entry)
         dict = {}
@@ -135,6 +140,7 @@ def parser(filepath):
         # flag = 1
         authors = []
         if match_check:
+            matched += 1
             print("matched")
             dict["id"] = count
             dict["authors"] = extract_authors(match_check.group(1))
@@ -143,100 +149,140 @@ def parser(filepath):
             entry = clean_reference_2(entry)
             match_check = re.match(WITH_DOI, entry)
             dict["doi"] = match_check.group(4)
-            # if count == 26:
-            #     dict["doi"] += '5'
-            search_result = cr.works(query=dict["x"], limit=1)
-            item = search_result['message']['items'][0]
-            print(f"Title: {item.get('title', ['No Title'])[0]}")
-            if 'author' in item:
-                for author in item['author']:
-                    # Using .get() to avoid KeyErrors if fields are missing
-                    given = author.get('given', '')
-                    family = author.get('family', '')
-                    # print(f" - Author: {given} {family}")
-                    res_author = given+" "+family
-                    authors.append(res_author)
-                    # print(authors)
-                    # if res_author in dict["authors"]:
-                    #     # print(dict['authors'], " != ", item["author"])
-                    #     flag = 0
-                    #     # suspect += 1
-                    #     break
-                    flag1 = 1
-                    for name in dict["authors"]:
-                        ratio = fuzz.ratio(res_author, name)
-                        if ratio > 80:
-                            flag1 = 0
-                            break
-                    if flag1 == 0:
-                        break
-            flag2 = 0
-            if item['DOI'] != dict["doi"]:
-                print(item["DOI"], " != ", dict["doi"])
-                suspect += 1
-                flag2 = 1
+            print(dict["x"])
+            query = dict['x']
 
-            if flag1 == 1:
-                print(authors, " != ", dict["authors"])
-                if flag2 == 0:
-                    suspect += 1
-            matched += 1
+            params = {
+                "search": query,
+                # "limit": 1,
+                # "fields": "title,authors,doi"
+            }
+            response = requests.get(url, params=params)
+
+            data = response.json()
+            title = ""
+            doi = ""
+            for work in data.get("results", []):
+                authors = [
+                    author.get("author", {}).get("display_name")
+                    for author in work.get("authorships", [])
+                ]
+
+                # print("Title:", work.get("title"))
+                title = work.get("title")
+                # print("DOI:", work.get("doi"))
+                doi = work.get("doi")
+                # print("Authors:", authors)
+                # print()
+                break
+            # continue
+            # paper = data["data"]
+
+            # title = paper["title"]
+            # print(paper.title)
+            title_len = len(title)
+            # authors = [a.name for a in paper.get("authors")]
+            flag_title, flag_authors, flag_doi = False, False, False
+            ratio = fuzz.ratio(title, dict["x"][:title_len])
+            if ratio <= 80:
+                flag_title = True
+            for author in authors:
+                flag_authors = True
+                for name in dict["authors"]:
+                    ratio = fuzz.ratio(author, name)
+                    if ratio > 80:
+                        flag_authors = False
+                        break
+                if not flag_authors:
+                    break
+
+            # doi = paper.get("doi")
+
+            if doi:
+                if doi != dict["doi"]:
+                    print(doi, " != ", dict["doi"])
+                    flag_doi = True
+            if flag_title or flag_authors or flag_doi:
+                suspect += 1
+                print("suspect")
+            # print(paper.id)
+            # print(authors)
+            # safely checking if doi is there
+            # print(doi)
+
         elif re.match(WITHOUT_DOI, entry):
+            matched += 1
             match_check = re.match(WITHOUT_DOI, entry)
             print("matched")
             dict["id"] = count
             dict["authors"] = extract_authors(match_check.group(1))
             dict["year"] = match_check.group(2)
             dict["x"] = match_check.group(3)
-            search_result = cr.works(query=dict["x"], limit=1)
-            item = search_result['message']['items'][0]
-            print(f"Title: {item.get('title', ['No Title'])[0]}")
-            if 'author' in item:
-                for author in item['author']:
-                    # Using .get() to avoid KeyErrors if fields are missing
-                    given = author.get('given', '')
-                    family = author.get('family', '')
-                    # print(f" - Author: {given} {family}")
-                    res_author = given+" "+family
-                    authors.append(res_author)
-                    # if res_author in dict["authors"]:
-                    #     flag = 0
-                    #     # suspect += 1
-                    #     break
-                    flag1 = 1
-                    for name in dict["authors"]:
-                        ratio = fuzz.ratio(res_author, name)
-                        if ratio > 80:
-                            flag1 = 0
-                            break
-                    if flag1 == 0:
+            print(dict["x"])
+
+            query = dict['x']
+
+            params = {
+                "search": query,
+                # "limit": 1,
+                # "fields": "title,authors,doi"
+            }
+            response = requests.get(url, params=params)
+            data = response.json()
+            response = requests.get(url, params=params)
+
+            data = response.json()
+            title = ""
+            for work in data.get("results", []):
+                authors = [
+                    author.get("author", {}).get("display_name")
+                    for author in work.get("authorships", [])
+                ]
+
+                # print("Title:", work.get("title"))
+                title = work.get("title")
+                # print("DOI:", work.get("doi"))
+                # print("Authors:", authors)
+                # print()
+                break
+            # paper = data["data"]
+            print()
+            # continue
+
+            # print(paper.title)
+            title_len = len(title)
+            # authors = [a.name for a in paper.get("authors")]
+            flag_title, flag_authors = False, False
+            ratio = fuzz.ratio(title, dict["x"][:title_len])
+            if ratio <= 80:
+                flag_title = True
+            for author in authors:
+                flag_authors = True
+                for name in dict["authors"]:
+                    ratio = fuzz.ratio(author, name)
+                    if ratio > 80:
+                        flag_authors = False
                         break
-            if flag1 == 1:
-                print(authors, " != ", dict["authors"])
+                if not flag_authors:
+                    break
+
+            if flag_title or flag_authors:
                 suspect += 1
-            matched += 1
-        # elif re.match(HAS_DOI, entry):
-        #     print("matched")
-        #     dict["id"] = count
-        #     entry = clean_reference_2(entry)
-        #     match_check = re.match(HAS_DOI, entry)
-        #     dict["doi"] = match_check.group(
-        #         1) if match_check.group(1) else match_check.group(2)
-        #     matched += 1
-        final_list.append(dict)
-        count += 1
-        # if matched == 30:
-        # break
+                print("suspect")
+        # if count % 10 == 0:
+        print(count)
+        print()
+        # time.sleep(3)
     print("Matched: ", matched)
     print("Total: ", count)
     print("Suspect: ", suspect)
-    return final_list
+    # return final_list
 
 
-output = parser("testfile.pdf")
+output = parser("testfile2.pdf")
 # f = open("references.txt", "w")
 # f.write(str(output)
-for entry in output:
-    print(entry)
+# for entry in output:
+#     print(entry)
 # ref_list = extract_references("testfile3.pdf")
 # print(ref_list[4])
